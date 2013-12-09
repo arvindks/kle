@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
 
 	x = 0.
-	la = analytical1d(x,k = 10,c = 1.,a = 1.)
+	la, _ = Nystrom(x,k = 10,c = 1.,a = 1.)
 	ln, _ = KLE1D(k = 10, c = 1., a = 1.)	
 
 
