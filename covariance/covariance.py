@@ -255,8 +255,6 @@ class CovarianceMatrix:
 
 		References:
 		-----------
-		.. [1] Richard K Beatson, Jon B Cherrie, and Cameron T Mouat. Fast fitting of radial basis functions: Methods based on preconditioned GMRES iteration. Advances in Computational Mathematics, 11(2-3):253–270, 1999.
-  				
 		
 		"""
 	

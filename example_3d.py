@@ -17,6 +17,7 @@ def view(kle):
 if __name__ == '__main__':
 	
 	mesh = Mesh("meshes/aneurysm.xml.gz")
+
 	kernel = Matern(p = 2, l = 20.)
 
 	kle = KLE(mesh, kernel, verbose = True)

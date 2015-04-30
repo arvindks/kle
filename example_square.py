@@ -45,12 +45,16 @@ def ploteigenvectors(kle):
 if __name__ == '__main__':
 
 	from dolfin import *
-	mesh = UnitSquare(100,100)	#really a 101 x 101 grid
-	kernel = Matern(p = 1,	l = 1.)	#Exponential covariance kernel
+	mesh = UnitSquare(20,20)	#really a 101 x 101 grid
+	mesh.coordinates()[:] = 2.*mesh.coordinates()-1.
+	
+	print mesh.coordinates()
+	kernel = Matern(p = 0,	l = 1.)	#Exponential covariance kernel
 
 	kle  = KLE(mesh, kernel, verbose = True)
 	kle.compute_eigendecomposition(k = 20)
 
+	print kle.l
 
 	import matplotlib.pyplot as plt
 	plt.close('all')

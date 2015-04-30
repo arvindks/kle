@@ -58,7 +58,8 @@ def ACA(pts, indx, indy, kernel, rkmax, eps):
 
 	References:
 	-----------
-	Sergej Rjasanow, Olaf Steinbach, The fast solution of boundary integral equations. Mathematical and analytical techniques with applications to engineering. Springer 2007, New York.	
+	Sergej Rjasanow, Olaf Steinbach, The fast solution of boundary integral equations. 
+		Mathematical and analytical techniques with applications to engineering. Springer 2007, New York.	
 
 	"""
 
@@ -130,8 +131,8 @@ def ACApp(pts, indx, indy, kernel, rkmax, eps):
 
         References:
         -----------
-        Sergej Rjasanow, Olaf Steinbach, The fast solution of boundary integral equations. Mathematical and analytical techniques with applications to engin
-eering. Springer 2007, New York.    
+        Sergej Rjasanow, Olaf Steinbach, The fast solution of boundary integral equations. 
+	Mathematical and analytical techniques with applications to engineering. Springer 2007, New York.    
 
         """
 	nx = np.size(indx)

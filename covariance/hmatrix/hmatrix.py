@@ -92,6 +92,7 @@ eering. Springer 2007, New York.
 			print "Time to construct low rank representation is %g " % (time() - start)
 
 		return
+
 	def mult(self, x, y, verbose = False):
 		"""
 		Matrix-vector product with the H-matrix

@@ -11,57 +11,84 @@ from time import time
 __all__ = ['RandomizedHEP', 'Nystrom', 'RandomizedSVD', 'RandomizedGHEP', 'RandomizedGHEP2']
 
 def RandomizedHEP(A, k, p = 20, twopass = False):
-	"""Randomized algorithm for Hermitian eigenvalue problems
+	"""
+	Randomized algorithm for Hermitian eigenvalue problems
+	Returns k largest eigenvalues computed using the randomized algorithm
+	
 	
 	Parameters:
+	-----------
+
+	A : {SparseMatrix,DenseMatrix,LinearOperator} n x n
+		Hermitian matrix operator whose eigenvalues need to be estimated
+	k :  int, 
+		number of eigenvalues/vectors to be estimated
+	p :  int, optional
+		oversampling parameter which can improve accuracy of resulting solution
+		Default: 20
+		
 	
-	A 	= LinearOperator n x n
-			hermitian matrix operator whose eigenvalues need to be estimated
-	k	= int, 
-			number of eigenvalues/vectors to be estimated
-	twopass = bool, 
-			determines if matrix-vector product is to be performed twice
+	twopass : bool, 
+		determines if matrix-vector product is to be performed twice
+		Default: False
+	
 	
 	Returns:
+	--------
 	
-	w	= double, k
-			eigenvalues
-	u 	= n x k 
-			eigenvectors
+	w : ndarray, (k,)
+		eigenvalues arranged in descending order
+	u : ndarray, (n,k)
+		eigenvectors arranged according to eigenvalues
 	
+
+	References:
+	-----------
+
+	.. [1] 
+
+
+	Examples:
+	---------
+
+	>>> import numpy as np
+	>>> A = np.diag(0.95**np.arange(100))
+	>>> w, v = RandomizedHEP(A, 10, twopass = True)
+
 	"""
 
 
 	#Get matrix sizes
 	m, n = A.shape
 	
+	Aop = aslinearoperator(A)
+
+
 	#For square matrices only
 	assert m == n
 
 	#Oversample
 	k = k + p 
 
+
 	#Generate gaussian random matrix 
 	Omega = np.random.randn(n,k)
 	
 	Y = np.zeros((m,k), dtype = 'd')
 	for i in np.arange(k):
-		Y[:,i] = A.matvec(Omega[:,i])
+		Y[:,i] = Aop.matvec(Omega[:,i])
 	
 	q,_ = qr(Y, mode = 'economic')
 
 	if twopass == True:
 		B = np.zeros((k,k),dtype = 'd')
 		for i in np.arange(k):
-			Aq = A.matvec(q[:,i])	
+			Aq = Aop.matvec(q[:,i])	
 			for j in np.arange(k):
 				B[i,j] = np.dot(q[:,j].transpose(),Aq)
 			
 	else:
 		from scipy.linalg import inv, pinv,svd, pinv2
-		#B = np.dot( np.dot(q.T, Y), inv(np.dot(q.T, Omega)) )
-		
-
 		temp  = np.dot(Omega.T, Y)
 		temp2 = np.dot(q.T,Omega)
 		temp3 = np.dot(q.T,Y)
@@ -73,12 +100,14 @@ def RandomizedHEP(A, k, p = 20, twopass = False):
 		
 	#Eigen subproblem
 	w, v = eigh(B)
+
 	#Reverse eigenvalues in descending order
 	w = w[::-1]
+
 	#Compute eigenvectors		
 	u = np.dot(q, v[:,::-1])	
 
-	k = k - p
+	k -= p
 	return w[:k], u[:,:k]
 
 def Nystrom(A, k, p = 20, twopass = False):
@@ -130,15 +159,10 @@ def Nystrom(A, k, p = 20, twopass = False):
 	from scipy.linalg import cholesky, svd, inv
 
 	R = cholesky(inv(T), lower = True)
-	
 	B = np.dot(Aq, R)
-
 	u, s, _ = svd(B) 
-		
 
-
-
-	k = k - p
+	k -=  p
 	return s[:k]**2., u[:,:k]
 
 def RandomizedSVD(A, k, p = 20):
@@ -192,65 +216,8 @@ def RandomizedSVD(A, k, p = 20):
 	k = k - p
 	return np.dot(q, u[:,:k]), s[:k], vt[:k,:].T
 
-def Aorthonormalize(A, Z, verbose = False):
-	""" Produce q'*A*q = I with inner product <x,y>_A = y'* A * x 
-	    using Modified Gram-Schmidt
-	"""
-	
-	#Get sizes
-	n = np.size(Z,0);	k = np.size(Z,1)
-	
-	#Initialize
-	Aq = np.zeros_like(Z, dtype  = 'd')
-	q  = np.zeros_like(Z, dtype = 'd')
-	r  = np.zeros((k,k), dtype = 'd')
-		
-
-	z  = Z[:,0]
-	Aq[:,0] = A.matvec(z)	
-
-
-	r[0,0] = np.sqrt(np.dot(z.T, Aq[:,0]))
-	q[:,0] = Z[:,0]/r[0,0]
-
-	Aq[:,0] /= r[0,0]
-
-	for j in np.arange(1,k):
-		q[:,j] = np.copy(Z[:,j])
-		
-		for i in np.arange(j):
-			r[i,j] = np.dot(q[:,j].T,Aq[:,i])
-			q[:,j] -= r[i,j]*q[:,i]
-
-
-		Aq[:,j] = A.matvec(q[:,j])
-		r[j,j]  = np.sqrt(np.dot(q[:,j].T,Aq[:,j]))
-
-		#If element becomes too small, terminate
-		if np.abs(r[j,j]) < 1.e-12:
-			kt = j-1;	
-			print "A-orthonormalization broke down"
-			break
-		
-		q[:,j]  /= r[j,j]	
-		Aq[:,j] /= r[j,j]	
-
-	if verbose:
-		#Verify Q'*A*Q = I
-		T = np.zeros((k,k), dtype = 'd')			
-		T = np.dot(q.T, Aq)
-		
-		#print T	
-		print np.linalg.norm(T - np.eye(k, dtype = 'd'), ord = 2)		
-
-		#Verify Q*R = Y
-		print np.linalg.norm(np.dot(q,r) - Z, 2)
-
-
-	return q, Aq, r 
-
-
-def RandomizedGHEP(A, B, k, p = 20, BinvA = None, twopass = True, verbose = False, error = True):
+def RandomizedGHEP(A, B, k, p = 20, BinvA = None, twopass = True, \
+		verbose = False, error = False):
 	"""
 		Randomized algorithm for Generalized Hermitian Eigenvalue problem
 		A approx (BU) * Lambda *(BU)^*
@@ -281,7 +248,6 @@ def RandomizedGHEP(A, B, k, p = 20, BinvA = None, twopass = True, verbose = Fals
 	else:
 		for i in np.arange(k):
 			Y[:,i]  = BinvA.matvec(Omega[:,i])
-			Yh[:,i] = B.matvec(Yh[:,i])
 
 
 	matvectime = time()-start	
@@ -292,27 +258,33 @@ def RandomizedGHEP(A, B, k, p = 20, BinvA = None, twopass = True, verbose = Fals
 	q, Bq, _  = Aorthonormalize(B, Y, verbose = False)
 
 	Borthtime = time()-start
-	if verbose:	print "B-orthonormalization time in eigenvalue calculation is %g " %(Borthtime) 
+	if verbose:	
+		print "B-orthonormalization time in eigenvalue calculation is %g " \
+			%(Borthtime) 
 	T = np.zeros((k,k), dtype = 'd')	
 
 	
 	start = time()
-	
 	if twopass == True:
 		for i in np.arange(k):
 			Aq = A.matvec(q[:,i])
 			for j in np.arange(k):
 				T[i,j] = np.dot(Aq,q[:,j])
 	else:
+
+		for i in np.arange(k):
+			Yh[:,i] = B.matvec(Y[:,i])
+		
 		from scipy.linalg import inv
 		OAO = np.dot(Omega.T, Yh)
 		QtBO = np.dot(Bq.T, Omega)
 		T = np.dot(inv(QtBO.T), np.dot(OAO, inv(QtBO)))
 
 	eigcalctime = time()-start
-	if verbose:	print "Calculating eigenvalues took %g" %(eigcalctime)
-	if verbose:	print "Total time taken for Eigenvalue calculations is %g" % (matvectime + Borthtime + eigcalctime)
-
+	if verbose:	
+		print "Calculating eigenvalues took %g" %(eigcalctime)
+		print "Total time taken for Eigenvalue calculations is %g" %\
+			 (matvectime + Borthtime + eigcalctime)
 
 	#Eigen subproblem
 	w, v = eigh(T)
@@ -338,13 +310,12 @@ def RandomizedGHEP(A, B, k, p = 20, BinvA = None, twopass = True, verbose = Fals
 			err[i] = np.sqrt(np.dot(diff.T, B.matvec(diff)) )
 	
 		BinvNorm = np.max(np.apply_along_axis(np.linalg.norm, 0, q))
-		
 		alpha = 10.
-	
 
 		from math import pi
 		print "Using r = %i and alpha = %g" %(r,alpha)
-		print "Error in B-norm is %g" %(alpha*np.sqrt(2./pi)*BinvNorm*np.max(err)/np.max(w))
+		print "Error in B-norm is %g" %\
+			(alpha*np.sqrt(2./pi)*BinvNorm*np.max(err)/np.max(w))
 
 	
 	return w[:k], u[:,:k]
@@ -453,36 +424,6 @@ def RandomizedGHEP2(A, B, k, p = 20, twopass = True, error = True):
 	return w, u
 
 
-def LowRankConversion(W,B):
-	"""
-	Convert low rank matrix WW^T = UDU^T, where U^TBU = I
-	Returns U,D
-	Untested
-	"""
-
-	w,_, r = Aorthonormalize(B,W, verbose = False)
-	mat = np.dot(r,r.T)
-
-	from scipy.linalg import svd
-	u,s,_ = svd(mat, compute_uv = True)
-
-	return np.dot(w,u), s
-	
-def AddSymmetricLowRankMatrices(U, d1, V, d2, B, tol = 1.e-10):
-       """
-       A = UD_1U^T + VD_2V^T = WDW^T
-       Truncates the singular values smaller than tol
-       Returns W,D
-       """	  	
-       U = np.dot(U,np.diag(np.sqrt(d1)))
-       V = np.dot(V,np.diag(np.sqrt(d2)))
-       
-       W = np.hstack((U,V))
-       
-       w, d = LowRankConversion(W,B)		
-       ind = np.flatnonzero(d/d[0] > tol)						
-        	   
-       return w[:,ind], d[ind]
         
 if __name__ == '__main__':
 

@@ -10,7 +10,8 @@ __all__ = ['KLE']
 
 class KLE:
 	"""
-	Class for generating eigenmodes of the Karhunen-Lo\`{e}ve expansion corresponding to covariance kernel \kappa(\cdot,\cdot)
+	Class for generating eigenmodes of the Karhunen-Lo\`{e}ve 
+		expansion corresponding to covariance kernel \kappa(\cdot,\cdot)
 
 	Parameters:
 	-----------
@@ -18,7 +19,8 @@ class KLE:
 		Contains information about the mesh topology
 
 	kernel: function
-		A stationary, translation-invariant covariance kernel \kappa(x,y) = \kappa(||x-y||). See, covariance/kernel.py for examples
+		A stationary, translation-invariant covariance kernel
+		 $\kappa(x,y) = \kappa(||x-y||)$. See, covariance/kernel.py for examples
 
 	verbose: bool, optional
 		Displays timing information
@@ -30,9 +32,11 @@ class KLE:
 		Linear Lagrange Finite Element Space. See dolfin
 
 	Q:	CovarianceMatrix
-		Implementation of the Covariance matrix class (Dense Matrix, FFT and HMatrix). Currently default is set to HMatrix
+		Implementation of the Covariance matrix class 
+		{Dense Matrix, FFT and HMatrix}. Currently default is set to HMatrix
+		FFT is restricted to regular grids		
 
-	
+
 	Methods:
 	--------
 	ComputeEigendecomposition()
@@ -53,18 +57,24 @@ class KLE:
 	"""
 	
 
-	def __init__(self, mesh, kernel, verbose = False):
+	def __init__(self, mesh, kernel, verbose = False, params = {}):
 
 		self.mesh 	= mesh
 		self.pts	= mesh.coordinates()
-		self.V		= FunctionSpace(mesh,"Lagrange",1)
+		self.V		= FunctionSpace(mesh, "Lagrange", 1)
 
 
 		self.kernel 	= kernel
 		self.verbose 	= verbose
 
+		rkmax = 10 if 'rkmax' not in params else params['rkmax']
+		eps = 1.e-12 if 'eps' not in params else params['eps']
+	
+
+
 		start = time()
-		self.Q 		= CovarianceMatrix('Hmatrix',self.pts, kernel,rkmax = 10, eps = 1.e-12) 
+		self.Q 		= CovarianceMatrix('Hmatrix',self.pts, kernel,\
+							 rkmax = rkmax, eps = eps) 
 		if verbose:	print "Time to setup H-matrix is %g" %(time()-start)
 
 
@@ -100,12 +110,14 @@ class KLE:
 		Mt = _Mass(self.M)
 		qm = _QM(self.Q, self.M) 
 		
-		l, v = GHEP(Qt, Mt, k = k,  p = p, twopass = twopass, verbose = verbose, BinvA = qm, error = False)
-		if verbose:	print "Ax %d, Bx %d, B^{-1}x %d"%(Qt.mvcount, Mt.mvcount, Mt.scount)
+		l, v = GHEP(Qt, Mt, k = k,  p = p, twopass = twopass,\
+				 verbose = verbose, BinvA = qm, error = False)
+		if verbose:	print "Ax %d, Bx %d, B^{-1}x %d"%\
+					(Qt.mvcount, Mt.mvcount, Mt.scount)
 		
 		return l, v
 
-	def _Arpack(self, k):
+	def _arpack(self, k):
 	
 		Qt = _MQM(self.Q, self.M)
 		Mt  = _Mass(self.M)
@@ -113,12 +125,14 @@ class KLE:
 	
 
 		verbose = self.verbose
-		l, v = eigsh(aslinearoperator(Qt), M = aslinearoperator(Mt), k = k, which = 'LM', Minv = aslinearoperator(Minv))
+		l, v = eigsh(aslinearoperator(Qt), M = aslinearoperator(Mt), \
+				k = k, which = 'LM', Minv = aslinearoperator(Minv))
 	
 		l = l[::-1]
 		v = v[:,::-1]
 		
-		if verbose:	print "Ax %d, Bx %d, B^{-1}x %d"%(Qt.mvcount, Mt.mvcount, Minv.mvcount)
+		if verbose:	print "Ax %d, Bx %d, B^{-1}x %d"%\
+					(Qt.mvcount, Mt.mvcount, Minv.mvcount)
 		return l, v
 
 
@@ -132,12 +146,15 @@ class KLE:
 			Number of eigenmodes
 
 		method:	string, optional
-			Method to compute eigendecomposition. Options are either 'Arpack' [1,2] (default) or 'Randomized' [3] 
+			Method to compute eigendecomposition. 
+			Options are either 'Arpack' [1,2] (default) or 'Randomized' [3] 
 
 		params:	dict, optional
 			Parameters to control accuracy of randomized eigendecomposition
-			keys: 'p' (int) is the oversampling factor and 'twopass' (bool) determines whether to use 	
-			two-pass (more accurate but expensive) or one-pass (less accurate and less expensive) [3]. 
+			keys: 'p' (int) is the oversampling factor and 
+			'twopass' (bool) determines whether to use 	
+			two-pass (more accurate but expensive) or one-pass 
+			(less accurate and less expensive) [3]. 
 
 
 		Returns:
@@ -147,7 +164,8 @@ class KLE:
 			Contains the eigenvalues in descending order
 
 		v:	(N,k) ndarray
-			Contains the corresponding eigenvectors. N is the number of grid points.
+			Contains the corresponding eigenvectors. 
+			N is the number of grid points.
 
 
 		Raises:
@@ -159,46 +177,50 @@ class KLE:
     		----------
     		.. [1] ARPACK Software, http://www.caam.rice.edu/software/ARPACK/
    		.. [2] R. B. Lehoucq, D. C. Sorensen, and C. Yang,  ARPACK USERS GUIDE:
-       			Solution of Large Scale Eigenvalue Problems by Implicitly Restarted Arnoldi Methods. SIAM, Philadelphia, PA, 1998.
+       			Solution of Large Scale Eigenvalue Problems by
+			 Implicitly Restarted Arnoldi Methods. 
+			SIAM, Philadelphia, PA, 1998.
 		.. [3] A.K. Saibaba and P.K. Kitanidis:	
-			Randomized square-root free algorithms for generalized Hermitian eigenvalue problems. Preprint http://arxiv.org/abs/1307.6885
+			Randomized square-root free algorithms for 
+				generalized Hermitian eigenvalue problems. 
+			Preprint http://arxiv.org/abs/1307.6885
 
 		"""
 		
 
 		start = time()
 		if method == 'Arpack':
-			l, v = self._Arpack(k)
+			l, v = self._arpack(k)
 		elif method == 'Randomized':
 
-			twopass = 'True' if 'twopass' not in params else params['twopass']
+			twopass = 'True' if 'twopass' not in params else\
+					 params['twopass']
 			p = 20 if 'p' not in params else params['p']
-			
-			l, v = self._RandomizedGHEP(k,p,twopass)
+			l, v = self._RandomizedGHEP(k, p, twopass)
 
 		else:		
 
 			raise NotImplementedError	
 		
 		verbose = self.verbose
-		if verbose:	print "Time taken for computing eigendecomposition is %g" %(time()-start)
+		if verbose:	
+			print "Time taken for computing eigendecomposition is %g" %\
+				(time()-start)
 
 		self.l, self.v = l, v
 		return l, v
 
 	def realizations(self):
 		"""
-		Generates realizations from the KLE assuming a Gaussian process
+		Generates a realization from the KLE assuming a Gaussian process
 
 
 		Returns:	
-		________
+		--------	
 		v:	(N,) ndarray
 			Realization of the gaussian process	
 
 		"""
-		
-
 	
 		k = self.l.shape[0]
 		eps = np.random.randn(k)
