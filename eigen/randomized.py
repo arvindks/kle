@@ -8,9 +8,9 @@ import numpy as np
 
 from time import time
 
-__all__ = ['RandomizedHEP', 'Nystrom', 'RandomizedSVD', 'RandomizedGHEP', 'RandomizedGHEP2']
+__all__ = ['randomhep', 'nystrom', 'randsvd', 'randomghep']
 
-def RandomizedHEP(A, k, p = 20, twopass = False):
+def randomhep(A, k, p = 20, twopass = False):
 	"""
 	Randomized algorithm for Hermitian eigenvalue problems
 	Returns k largest eigenvalues computed using the randomized algorithm
@@ -45,7 +45,7 @@ def RandomizedHEP(A, k, p = 20, twopass = False):
 	References:
 	-----------
 
-	.. [1] 
+	.. [1] Halko, Nathan, Per-Gunnar Martinsson, and Joel A. Tropp. "Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions." SIAM review 53.2 (2011): 217-288.
 
 
 	Examples:
@@ -85,7 +85,7 @@ def RandomizedHEP(A, k, p = 20, twopass = False):
 		for i in np.arange(k):
 			Aq = Aop.matvec(q[:,i])	
 			for j in np.arange(k):
-				B[i,j] = np.dot(q[:,j].transpose(),Aq)
+				B[i,j] = np.dot(q[:,j].T,Aq)
 			
 	else:
 		from scipy.linalg import inv, pinv,svd, pinv2
@@ -110,7 +110,7 @@ def RandomizedHEP(A, k, p = 20, twopass = False):
 	k -= p
 	return w[:k], u[:,:k]
 
-def Nystrom(A, k, p = 20, twopass = False):
+def nystrom(A, k, p = 20, twopass = False):
 	"""Randomized algorithm for Hermitian eigenvalue problems
 	
 	Parameters:
@@ -216,7 +216,7 @@ def RandomizedSVD(A, k, p = 20):
 	k = k - p
 	return np.dot(q, u[:,:k]), s[:k], vt[:k,:].T
 
-def RandomizedGHEP(A, B, k, p = 20, BinvA = None, twopass = True, \
+def randomghep(A, B, k, p = 20, BinvA = None, twopass = True, \
 		verbose = False, error = False):
 	"""
 		Randomized algorithm for Generalized Hermitian Eigenvalue problem
@@ -251,7 +251,8 @@ def RandomizedGHEP(A, B, k, p = 20, BinvA = None, twopass = True, \
 
 
 	matvectime = time()-start	
-	if verbose:	print "Matvec time in eigenvalue calculation is %g " %(matvectime) 
+	if verbose:	
+		print "Matvec time in eigenvalue calculation is %g " %(matvectime) 
 
 	#Compute Y = Q*R such that Q'*B*Q = I, R can be discarded
 	start = time()
@@ -298,7 +299,7 @@ def RandomizedGHEP(A, B, k, p = 20, BinvA = None, twopass = True, \
 
 	if error:
 		#Compute error estimate
-		r = 15 
+		r = 5 
 		O = np.random.randn(n,r)
 		err = np.zeros((r,), dtype = 'd')
 		AO = np.zeros((n,r), dtype = 'd')
@@ -319,110 +320,6 @@ def RandomizedGHEP(A, B, k, p = 20, BinvA = None, twopass = True, \
 
 	
 	return w[:k], u[:,:k]
-
-
-def RandomizedGHEP2(A, B, k, p = 20, twopass = True, error = True):
-	"""
-		Randomized algorithm for Generalized Hermitian Eigenvalue problem
-		A * U = B * U * Lambda
-
-		Computes k largest eigenvalues and eigenvectors
-		
-		Modified from randomized algorithm for EV/SVD of A
-
-	"""
-
-	m,n = A.shape
-	assert m == n	
-	
-	#Oversample
-	k = k + p
-
-	#Initialize quantities
-	Omega 	= np.random.randn(n,k)
-	Y   	= np.zeros_like(Omega, dtype = 'd')
-	
-	from time import time
-
-	start = time()
-	#Form matrix vector products with C = B^{-1}A
-	for i in np.arange(k):
-		Y[:,i] = A.matvec(Omega[:,i])
-
-	matvectime = time()-start	
-	print "Matvec time in eigenvalue calculation is %g " %(matvectime) 
-
-	
-	matvec = lambda x: B.solve(x)
-	Binv = LinearOperator((n,n), matvec = matvec, dtype = 'd')		
-
-	#Compute Y = Q*R such that Q'*B*Q = I, R can be discarded
-	start = time()
-	Bq, q, r  = Aorthonormalize(Binv, Y, verbose = False)
-	Borthtime = time()-start
-	print "B-orthonormalization time in eigenvalue calculation is %g " %(Borthtime) 
-
-	start = time()
-
-	T = np.zeros((k,k), dtype = 'd')	
-
-	if twopass == True:
-		for i in np.arange(k):
-			Aq = A.matvec(q[:,i])
-			for j in np.arange(k):
-				T[i,j] = np.dot(Aq,q[:,j])
-
-		#Eigen subproblem
-		w, v = eigh(T)
-		#Reverse eigenvalues in descending order
-		w = w[::-1]
-		
-		
-	else:
-		from scipy.linalg import inv, svd, pinv, pinv2
-		#T = np.dot(np.dot(q.T, Y),inv(np.dot(Bq.T, Omega)))
-	
-		OAO = np.dot(Omega.T, Y)
-		QtBO = np.dot(Bq.T, Omega)
-		T = np.dot(inv(QtBO.T), np.dot(OAO, inv(QtBO)))
-
-		w, v = eigh(T); w = w[::-1]
-
-	eigcalctime = time()-start
-	print "Calculating eigenvalues took %g" %(eigcalctime)
-
-	print "Total time taken for Eigenvalue calculations is %g" % (matvectime + Borthtime + eigcalctime)
-	
-	if error:
-		#Compute error estimate
-		r = 5
-		O = np.random.randn(n,r)
-		err = np.zeros((r,), dtype = 'd')
-		AO = np.zeros((n,r), dtype = 'd')
-		BinvAO = np.zeros((n,r), dtype = 'd')
-		for i in np.arange(r):
-			AO[:,i]     = A.matvec(O[:,i])
-			BinvAO[:,i] = B.solve(AO[:,i])
-			diff =	BinvAO[:,i] - np.dot(q,np.dot(q.T,AO[:,i]))		
-			err[i] = np.sqrt(np.dot(diff.T, B.matvec(diff)) )
-	
-		BinvNorm = np.max(np.apply_along_axis(np.linalg.norm, 0, q))
-
-		from math import pi
-		print "Error in B-norm is %g" %(10.*np.sqrt(2./pi)*BinvNorm*np.max(err))
-
-
-	
-		
-	#Compute eigenvectors		
-	u = np.dot(q, v[:,::-1])	
-
-	k = k - p
-	w = w[:k]
-	u = u[:,:k]
-	
-	return w, u
-
 
         
 if __name__ == '__main__':
@@ -466,22 +363,7 @@ if __name__ == '__main__':
 
 	id_ = Identity(n)
 	
-	l_, v_ = RandomizedGHEP(matop, id_, 10)
+	l_, v_ = randomghep(matop, id_, 10)
 
-	#print l_, le[:10]
-
-
-	V = np.random.randn(n,10)
-	I = id_
-	u,d = LowRankConversion(V,mat)
-	d = np.diag(d)   
-	print np.linalg.norm(np.dot(V,V.T)-np.dot(u,np.dot(d,u.T)),2)
-
-        U = np.random.randn(n,10);   V = np.random.randn(n,10);
-	u1,d1 = LowRankConversion(U,mat);   u2, d2 = LowRankConversion(V,mat);
-	
-	w, d = AddSymmetricLowRankMatrices(u1,d1,u2,d2,mat)
-	print np.linalg.norm(np.dot(w,np.dot(np.diag(d),w.T)) -np.dot(U,U.T) - np.dot(V,V.T),2)
-    
     
 
