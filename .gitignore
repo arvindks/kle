@@ -1,0 +1,5 @@
+*.swp
+*.mat
+*.pyc
+*.png
+.DS_STORE

@@ -225,9 +225,12 @@ class KLE:
 		k = self.l.shape[0]
 		eps = np.random.randn(k)
 
-		l, v = self.l, self.v 
+	
 
-		return np.dot(v, np.diag(np.sqrt(l)*eps))		
+		l, v = self.l, self.v 
+	
+
+		return np.sum(np.dot(v, np.diag(np.sqrt(l)*eps)), axis = 1)		
 	
 
 class _MQM:

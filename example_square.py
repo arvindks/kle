@@ -27,7 +27,9 @@ def ploteigenvectors(kle):
 		
 		fig, axes = plt.subplots(nrows = 2, ncols = 4)
 		for ax, i in zip(axes.flat,eign):
-			im = ax.tripcolor(tri, v[:,i].flatten(), vmin = vmin, vmax = vmax, shading = 'gouraud', cmap = plt.cm.rainbow)
+			im = ax.tripcolor(tri, v[:,i].flatten(), \
+				vmin = vmin, vmax = vmax, shading = 'gouraud', \
+				cmap = plt.cm.rainbow)
 			ax.set_xticks([])
 			ax.set_yticks([])
 
@@ -48,7 +50,6 @@ if __name__ == '__main__':
 	mesh = UnitSquare(20,20)	#really a 101 x 101 grid
 	mesh.coordinates()[:] = 2.*mesh.coordinates()-1.
 	
-	print mesh.coordinates()
 	kernel = Matern(p = 0,	l = 1.)	#Exponential covariance kernel
 
 	kle  = KLE(mesh, kernel, verbose = True)
@@ -60,7 +61,9 @@ if __name__ == '__main__':
 	plt.close('all')
 	
 
-	ploteigenvectors(kle)
+	#ploteigenvectors(kle)
+	#Generate realizations
+	real = kle.realizations()
 
 	
 
